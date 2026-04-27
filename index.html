@@ -178,6 +178,7 @@
       pointer-events: none;
       z-index: 10;
       opacity: 0;
+      visibility: hidden;
       text-align: center;
       background: rgba(255,255,255,0.18);
       backdrop-filter: blur(18px);
@@ -192,10 +193,12 @@
     }
 
     #reveal-image.visible {
+      visibility: visible;
       animation: bounceIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
     #reveal-image.hiding {
+      visibility: visible;
       animation: bounceOut 0.4s ease-in forwards;
     }
 
@@ -230,6 +233,14 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
       animation: shimmer 2.8s infinite linear 1s;
+    }
+
+    #reveal-image .reveal-headline-amp {
+      font-size: clamp(1.2rem, 3.5vw, 1.9rem);
+      background: linear-gradient(90deg, #1a3a4a, #347b9e) !important;
+      background-size: unset !important;
+      animation: none !important;
+      letter-spacing: 0.02em;
     }
 
     #reveal-image .reveal-divider {
@@ -567,6 +578,75 @@
       margin: 0.5rem 0 0.9rem;
     }
 
+    /* ── Glass hint overlay ── */
+    @keyframes hintPulse {
+      0%, 100% { transform: translateY(0) scale(1);   opacity: 0.95; }
+      50%       { transform: translateY(-6px) scale(1.04); opacity: 1; }
+    }
+
+    @keyframes hintHammer {
+      0%,100% { transform: rotate(-15deg) scale(1); }
+      40%     { transform: rotate(10deg)  scale(1.15); }
+    }
+
+    @keyframes hintFadeOut {
+      to { opacity: 0; pointer-events: none; }
+    }
+
+    #glass-hint {
+      position: fixed;
+      inset: 0;
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    #glass-hint.gone {
+      animation: hintFadeOut 0.5s ease forwards;
+    }
+
+    .hint-inner {
+      text-align: center;
+      animation: hintPulse 2.2s ease-in-out infinite;
+    }
+
+    .hint-icon {
+      font-size: 3.5rem;
+      display: block;
+      margin-bottom: 0.5rem;
+      animation: hintHammer 1.6s ease-in-out infinite;
+      transform-origin: bottom center;
+    }
+
+    .hint-line1 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: rgba(26,58,74,0.6);
+      margin: 0;
+      letter-spacing: 0.04em;
+    }
+
+    .hint-line2 {
+      font-family: 'Inter', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1a3a4a;
+      margin: 0.1rem 0 0.4rem;
+      letter-spacing: -0.01em;
+    }
+
+    .hint-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      color: rgba(52,123,158,0.75);
+      margin: 0;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
   </style>
 </head>
 
@@ -694,19 +774,8 @@
       <button id="reset" type="button">Clear Glass 🧹</button>
     </div>
 
-    <!-- Text card bounces in on first smash -->
-    <div id="reveal-image" aria-live="polite">
-      <span class="reveal-eyebrow">⚠️ Is your website at risk?</span>
-      <h2 class="reveal-headline">
-        Free Website<br>
-        <span>Compliance Audit</span>
-      </h2>
-      <div class="reveal-divider"></div>
-      <p class="reveal-tagline">Don't wait for a penalty — get your free audit today.</p>
-      <button class="reveal-cta" id="open-form-btn" type="button">
-        📋 Click Here to Request
-      </button>
-    </div>
+    <!-- Text card injected by JS on first smash -->
+    <div id="reveal-image"></div>
 
     <!-- Modal overlay -->
     <div id="form-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -759,8 +828,9 @@
           <label for="f-service">What are you interested in?</label>
           <select id="f-service">
             <option value="" disabled selected>— Select a service —</option>
-            <option value="ADA Compliance Audit">♿ Website ADA Compliance Audit</option>
+            <option value="Free Website Compliance Audit">♿ Free Website Compliance Audit</option>
             <option value="Free Website Demo">🖥️ Free Website Demo</option>
+            <option value="Free Website Compliance Audit & Demo">🎯 Free Compliance Audit &amp; Demo</option>
           </select>
         </div>
 
@@ -773,6 +843,16 @@
           💬 Send SMS Request
         </button>
         <p class="modal-disclaimer">Opens your SMS app pre-filled — no data stored.</p>
+      </div>
+    </div>
+
+    <!-- Hint overlay — fades out on first smash -->
+    <div id="glass-hint">
+      <div class="hint-inner">
+        <div class="hint-icon">🔨</div>
+        <p class="hint-line1">Tap anywhere to</p>
+        <p class="hint-line2">Break the Glass</p>
+        <p class="hint-sub">and reveal your free offer</p>
       </div>
     </div>
 
@@ -865,7 +945,6 @@
     class GlassShatterEngine {
       #svg; #audio; #layers;
       #currentStressId = null;
-      #demoTimer = null;
 
       constructor(svgId, audioId) {
         this.#svg   = document.getElementById(svgId);
@@ -884,7 +963,6 @@
         };
 
         this.#bindEvents();
-        this.#triggerDemo();
       }
 
       #bindEvents() {
@@ -898,17 +976,12 @@
         });
       }
 
-      #triggerDemo() {
-        this.#demoTimer = setTimeout(() => {
-          this.#handleImpact({
-            clientX: window.innerWidth  / 2,
-            clientY: window.innerHeight / 2
-          });
-        }, 900);
-      }
-
       #handleImpact({ clientX, clientY }) {
-        clearTimeout(this.#demoTimer);
+        // Dismiss hint on first tap
+        const hint = document.getElementById("glass-hint");
+        if (hint && !hint.classList.contains("gone")) {
+          hint.classList.add("gone");
+        }
 
         // Recentre the soft spotlight on the impact point
         const grad = this.#svg.querySelector("#spotlightGrad");
@@ -945,15 +1018,54 @@
         if (img) {
           img.classList.remove("visible");
           img.classList.add("hiding");
-          setTimeout(() => img.classList.remove("hiding"), 450);
+          setTimeout(() => {
+            img.classList.remove("hiding");
+            img.innerHTML = "";
+            delete img.dataset.injected;
+          }, 450);
+        }
+        const hint = document.getElementById("glass-hint");
+        if (hint) {
+          hint.classList.remove("gone");
+          hint.style.animation = "";
         }
       }
 
       #revealAtPoint() {
         const img = document.getElementById("reveal-image");
-        if (!img || img.classList.contains("visible")) return;
+        if (!img) return;
+
+        // First smash — inject the card content
+        if (!img.dataset.injected) {
+          img.dataset.injected = "true";
+          img.setAttribute("aria-live", "polite");
+          img.innerHTML = `
+            <span class="reveal-eyebrow">⚠️ Is your website at risk?</span>
+            <h2 class="reveal-headline">
+              Free Website<br>
+              <span>Compliance Audit</span><br>
+              <span class="reveal-headline-amp">&amp; Demo</span>
+            </h2>
+            <div class="reveal-divider"></div>
+            <p class="reveal-tagline">Don't wait for a penalty — get your free audit &amp; demo today.</p>
+            <button class="reveal-cta" id="open-form-btn" type="button">
+              📋 Click Here to Request
+            </button>
+          `;
+          // Bind the CTA now that it exists in the DOM
+          const openBtn = document.getElementById("open-form-btn");
+          const modal   = document.getElementById("form-modal");
+          if (openBtn && modal) {
+            openBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              modal.classList.add("open");
+            });
+            openBtn.addEventListener("pointerdown", e => e.stopPropagation());
+          }
+        }
+
+        if (img.classList.contains("visible")) return;
         img.classList.remove("hiding");
-        // Force reflow so animation restarts cleanly
         void img.offsetWidth;
         img.classList.add("visible");
       }
@@ -1226,24 +1338,16 @@
     /* ── Modal form ── */
     function initModal() {
       const modal    = document.getElementById("form-modal");
-      const openBtn  = document.getElementById("open-form-btn");
       const closeBtn = document.getElementById("modal-close");
       const sendBtn  = document.getElementById("send-sms-btn");
       const websiteSection = document.getElementById("website-section");
-
-      const openModal = (e) => {
-        e && e.stopPropagation();
-        modal.classList.add("open");
-      };
 
       const closeModal = (e) => {
         e && e.stopPropagation();
         modal.classList.remove("open");
       };
 
-      openBtn.addEventListener("click",       openModal);
-      openBtn.addEventListener("pointerdown", e => e.stopPropagation());
-      closeBtn.addEventListener("click",      closeModal);
+      closeBtn.addEventListener("click",       closeModal);
       closeBtn.addEventListener("pointerdown", e => e.stopPropagation());
 
       // Close on backdrop click
