@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Breaking Glass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --brand-start: #94e3f2;
+      --brand-stop:  #347b9e;
+      --text-primary: #1a3a4a;
+      --glass-bg:           rgba(255,255,255,0.18);
+      --glass-bg-hover:     rgba(255,255,255,0.28);
+      --glass-border:       rgba(255,255,255,0.35);
+      --glass-border-hover: rgba(255,255,255,0.6);
+      --shadow-primary:     rgba(107,175,209,0.4);
+      --transition-spring: 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      --transition-fast:   0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      background: linear-gradient(160deg, #94e3f2 0%, #347b9e 100%);
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' font-size='52'%3E%F0%9F%94%A8%3C/text%3E%3C/svg%3E") 10 16, auto;
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #glass-svg {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    #glass-svg circle {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .ui-controls {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+    }
+
+    #reset {
+      font-family: 'Inter', sans-serif;
+      color: #1a3a4a;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+    }
+
+    #reset::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        105deg,
+        transparent 30%,
+        oklch(100% 0 0 / 0.16) 50%,
+        transparent 70%
+      );
+      transform: translateX(-100%);
+      transition: transform 0s;
+      pointer-events: none;
+    }
+
+    #reset::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 10%;
+      width: 80%; height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        oklch(100% 0 0 / 0.45) 40%,
+        oklch(100% 0 0 / 0.45) 60%,
+        transparent
+      );
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+      pointer-events: none;
+    }
+
+    #reset:hover {
+      background: var(--glass-bg-hover);
+      border-color: var(--glass-border-hover);
+      transform: translateY(-2px) scale(1.04);
+      box-shadow:
+        0 0 0 1px oklch(100% 0 0 / 0.08) inset,
+        0 4px 20px var(--shadow-primary),
+        0 8px 32px calc(var(--shadow-primary) / 2.5),
+        0 2px 8px oklch(0% 0 0 / 0.2);
+    }
+
+    #reset:hover::before {
+      transform: translateX(200%);
+      transition: transform var(--transition-spring);
+    }
+
+    #reset:hover::after { opacity: 1; }
+
+    #reset:active {
+      transform: translateY(1px) scale(0.97);
+      box-shadow:
+        0 0 0 1px oklch(100% 0 0 / 0.05) inset,
+        0 1px 6px calc(var(--shadow-primary) / 1.5);
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+
+    @keyframes drawLine    { to { stroke-dashoffset: 0; } }
+    @keyframes fadeInShard { to { opacity: 1; transform: scale(1); } }
+    @keyframes flashOut    { to { opacity: 0; transform: scale(2.5); } }
+
+    @keyframes bounceIn {
+      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.0); }
+      55%  { opacity: 1; transform: translate(-50%, -50%) scale(1.10); }
+      72%  { transform: translate(-50%, -50%) scale(0.95); }
+      84%  { transform: translate(-50%, -50%) scale(1.04); }
+      93%  { transform: translate(-50%, -50%) scale(0.99); }
+      100% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+    }
+
+    @keyframes bounceOut {
+      0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+      20%  { transform: translate(-50%, -50%) scale(1.05); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.0); }
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+
+    @keyframes subtitleFade {
+      0%   { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    #reveal-image {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      width: min(88vw, 560px);
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      text-align: center;
+      background: rgba(255,255,255,0.18);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.45);
+      border-radius: 24px;
+      padding: 3rem 2.5rem 2.5rem;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.15) inset,
+        0 20px 60px rgba(52,123,158,0.35),
+        0 4px 20px rgba(0,0,0,0.12);
+    }
+
+    #reveal-image.visible {
+      animation: bounceIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    #reveal-image.hiding {
+      animation: bounceOut 0.4s ease-in forwards;
+    }
+
+    #reveal-image .reveal-eyebrow {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(52,123,158,0.85);
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    #reveal-image .reveal-headline {
+      font-family: 'Inter', sans-serif;
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      font-weight: 700;
+      line-height: 1.1;
+      margin: 0 0 0.5rem;
+      background: linear-gradient(135deg, #1a3a4a 0%, #347b9e 60%, #94e3f2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #reveal-image .reveal-headline span {
+      display: block;
+      background: linear-gradient(90deg, #347b9e 0%, #94e3f2 40%, #fff 50%, #94e3f2 60%, #347b9e 100%);
+      background-size: 800px 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 2.8s infinite linear 1s;
+    }
+
+    #reveal-image .reveal-divider {
+      width: 48px;
+      height: 3px;
+      background: linear-gradient(90deg, #94e3f2, #347b9e);
+      border-radius: 2px;
+      margin: 1rem auto 0.75rem;
+      animation: subtitleFade 0.5s ease 0.4s both;
+    }
+
+    #reveal-image .reveal-tagline {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      color: #2a5a74;
+      margin: 0 0 1.25rem;
+      animation: subtitleFade 0.5s ease 0.5s both;
+      opacity: 0;
+    }
+
+    .reveal-cta {
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #347b9e, #1a3a4a);
+      border: none;
+      border-radius: 999px;
+      padding: 0.75rem 2rem;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      box-shadow: 0 4px 20px rgba(52,123,158,0.45), 0 2px 8px rgba(0,0,0,0.15);
+      animation: subtitleFade 0.5s ease 0.65s both;
+      opacity: 0;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      pointer-events: all;
+    }
+
+    .reveal-cta:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 8px 28px rgba(52,123,158,0.55), 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .reveal-cta:active {
+      transform: scale(0.97);
+    }
+
+    /* ── Modal ── */
+    #form-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(10,30,45,0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    #form-modal.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    #modal-card {
+      background: rgba(255,255,255,0.97);
+      border-radius: 20px;
+      padding: 1.5rem 1.75rem 1.5rem;
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 24px 64px rgba(26,58,74,0.3), 0 4px 16px rgba(0,0,0,0.1);
+      transform: translateY(24px) scale(0.96);
+      transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    #form-modal.open #modal-card {
+      transform: translateY(0) scale(1);
+    }
+
+    #modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(52,123,158,0.1);
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 0.85rem;
+      color: #347b9e;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    #modal-close:hover { background: rgba(52,123,158,0.2); }
+
+    .modal-eyebrow {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #347b9e;
+      margin-bottom: 0.35rem;
+    }
+
+    #modal-card h3 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #1a3a4a;
+      margin: 0 0 0.25rem;
+    }
+
+    .modal-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      color: #5a7f93;
+      margin: 0 0 1.25rem;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .field-group label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #2a5a74;
+      letter-spacing: 0.03em;
+    }
+
+    .field-group .optional {
+      font-weight: 400;
+      color: #8aacba;
+    }
+
+    .field-group input,
+    .field-group textarea {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      color: #1a3a4a;
+      background: #f0f8fc;
+      border: 1.5px solid #c2dce9;
+      border-radius: 10px;
+      padding: 0.6rem 0.85rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      resize: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .field-group input:focus,
+    .field-group textarea:focus {
+      border-color: #347b9e;
+      box-shadow: 0 0 0 3px rgba(52,123,158,0.15);
+    }
+
+    .field-group input::placeholder,
+    .field-group textarea::placeholder {
+      color: #aac5d2;
+    }
+
+    #send-sms-btn {
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #347b9e 0%, #1a3a4a 100%);
+      border: none;
+      border-radius: 999px;
+      padding: 0.85rem;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      margin-top: 0.5rem;
+      box-shadow: 0 4px 18px rgba(52,123,158,0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #send-sms-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(52,123,158,0.5);
+    }
+
+    #send-sms-btn:active { transform: scale(0.97); }
+
+    .modal-disclaimer {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      color: #9ab8c5;
+      text-align: center;
+      margin: 0.75rem 0 0;
+    }
+
+    /* Radio group */
+    .radio-group {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.1rem;
+    }
+
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #1a3a4a;
+      cursor: pointer;
+      padding: 0.5rem 1rem;
+      border: 1.5px solid #c2dce9;
+      border-radius: 999px;
+      background: #f0f8fc;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .radio-group input[type="radio"] {
+      width: auto;
+      accent-color: #347b9e;
+      margin: 0;
+    }
+
+    .radio-group label:has(input:checked) {
+      border-color: #347b9e;
+      background: rgba(52,123,158,0.1);
+      color: #347b9e;
+    }
+
+    /* URL field with prefix */
+    .url-input-wrap {
+      display: flex;
+      border: 1.5px solid #c2dce9;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f0f8fc;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .url-input-wrap:focus-within {
+      border-color: #347b9e;
+      box-shadow: 0 0 0 3px rgba(52,123,158,0.15);
+    }
+
+    .url-prefix {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #347b9e;
+      background: rgba(52,123,158,0.08);
+      padding: 0.6rem 0.6rem 0.6rem 0.85rem;
+      border-right: 1.5px solid #c2dce9;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+    }
+
+    .url-input-wrap input {
+      border: none !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .url-input-wrap input:focus {
+      border: none;
+      box-shadow: none;
+    }
+
+    /* Select dropdown */
+    .field-group select {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      color: #1a3a4a;
+      background: #f0f8fc;
+      border: 1.5px solid #c2dce9;
+      border-radius: 10px;
+      padding: 0.6rem 0.85rem;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23347b9e' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.85rem center;
+      padding-right: 2.2rem;
+    }
+
+    .field-group select:focus {
+      border-color: #347b9e;
+      box-shadow: 0 0 0 3px rgba(52,123,158,0.15);
+    }
+
+    /* Conditional website section */
+    #website-section {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.25s ease;
+      margin-bottom: 0;
+    }
+
+    #website-section.visible {
+      max-height: 200px;
+      opacity: 1;
+      margin-bottom: 0.9rem;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c2dce9, transparent);
+      margin: 0.5rem 0 0.9rem;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="stage">
+
+    <svg id="glass-svg" width="100%" height="100%" aria-hidden="true">
+      <defs id="defs">
+
+        <linearGradient id="bgGrad" x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0%"   stop-color="#94e3f2" />
+          <stop offset="100%" stop-color="#347b9e" />
+        </linearGradient>
+
+        <!-- Spotlight radial gradient — centre updated by JS on each impact -->
+        <radialGradient id="spotlightGrad" cx="50%" cy="50%" r="45%" gradientUnits="userSpaceOnUse"
+          gradientTransform="translate(0,0)">
+          <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.18" />
+          <stop offset="55%"  stop-color="#ffffff" stop-opacity="0.04" />
+          <stop offset="100%" stop-color="#000000" stop-opacity="0.10" />
+        </radialGradient>
+
+        <pattern id="conicPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+          <rect width="40" height="40" fill="transparent" />
+          <path d="M20 20 L20 -10 A30 30 0 0 1 50 20 Z"  fill="rgba(255,255,255,0.06)" />
+          <path d="M20 20 L50 20 A30 30 0 0 1 20 50 Z"   fill="transparent" />
+          <path d="M20 20 L20 50 A30 30 0 0 1 -10 20 Z"  fill="rgba(255,255,255,0.06)" />
+          <path d="M20 20 L-10 20 A30 30 0 0 1 20 -10 Z" fill="transparent" />
+        </pattern>
+
+        <pattern id="sceneBg" width="100%" height="100%" patternUnits="userSpaceOnUse">
+          <rect width="100%" height="100%" fill="url(#bgGrad)" />
+          <rect width="100%" height="100%" fill="url(#conicPattern)" />
+        </pattern>
+
+        <filter id="glassBody" x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.055 0.04"
+            numOctaves="3" seed="2" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="6"
+            xChannelSelector="R" yChannelSelector="G" result="displaced" />
+          <feGaussianBlur in="displaced" stdDeviation="8" result="bodyBlur" />
+          <feColorMatrix in="bodyBlur" type="matrix" result="tinted"
+            values="0.85 0.92 1 0 0.04  0.85 0.92 1 0 0.04  0.9 0.95 1 0 0.08  0 0 0 0.72 0" />
+          <feComposite in="tinted" in2="SourceGraphic" operator="in" />
+        </filter>
+
+        <filter id="frostEdge" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="edgeBlur" />
+          <feColorMatrix in="edgeBlur" type="matrix" result="whiteEdge"
+            values="0.9 1 1 0 0.1  0.9 1 1 0 0.1  1 1 1 0 0.15  0 0 0 1.6 -0.2" />
+          <feComposite in="whiteEdge" in2="SourceAlpha" operator="in" result="clipped" />
+          <feGaussianBlur in="clipped" stdDeviation="6" />
+        </filter>
+
+        <filter id="crackGlow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="2"  result="blur1" />
+          <feGaussianBlur in="SourceAlpha" stdDeviation="6"  result="blur2" />
+          <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur3" />
+          <feColorMatrix in="blur1" type="matrix" result="glow1"
+            values="0.9 1 1 0 0.1  0.9 1 1 0 0.1  1 1 1 0 0.2  0 0 0 1.4 0" />
+          <feColorMatrix in="blur2" type="matrix" result="glow2"
+            values="0.7 0.88 1 0 0  0.7 0.88 1 0 0  0.8 0.94 1 0 0  0 0 0 0.55 0" />
+          <feColorMatrix in="blur3" type="matrix" result="glow3"
+            values="0.5 0.75 1 0 0  0.5 0.75 1 0 0  0.6 0.85 1 0 0  0 0 0 0.2 0" />
+          <feMerge>
+            <feMergeNode in="glow3" />
+            <feMergeNode in="glow2" />
+            <feMergeNode in="glow1" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        <filter id="glassRefraction" x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.02 0.04"
+            numOctaves="3" seed="5" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="35"
+            xChannelSelector="R" yChannelSelector="G" result="warped" />
+          <feColorMatrix in="warped" type="matrix" result="tinted"
+            values="0.85 0 0 0 0.05  0 0.9 0 0 0.1  0 0 1.0 0 0.15  0 0 0 0.9 0" />
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="blur" />
+          <feComposite in="SourceAlpha" in2="blur" operator="out" result="edge" />
+          <feColorMatrix in="edge" type="matrix" result="brightEdge"
+            values="1 0 0 0 1  0 1 0 0 1  0 0 1 0 1  0 0 0 0.6 0" />
+          <feMerge>
+            <feMergeNode in="tinted" />
+            <feMergeNode in="brightEdge" />
+          </feMerge>
+        </filter>
+
+        <filter id="glassBloom" x="-300%" y="-300%" width="700%" height="700%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="28" result="bloom" />
+          <feColorMatrix in="bloom" type="matrix"
+            values="0.5 0.75 1 0 0  0.5 0.75 1 0 0  0.6 0.85 1 0 0  0 0 0 0.35 0" />
+        </filter>
+
+      </defs>
+
+      <!-- Scene background -->
+      <rect width="100%" height="100%" fill="url(#sceneBg)" />
+
+      <!-- Soft spotlight — recentres on each impact via JS -->
+      <rect id="spotlight-layer" width="100%" height="100%" fill="url(#spotlightGrad)" pointer-events="none" />
+
+      <!-- Draw layers — populated by the JS engine -->
+      <g id="shadow-layer"></g>
+      <g id="shard-layer"></g>
+      <g id="ring-layer"></g>
+      <g id="crack-layer"></g>
+      <g id="dust-layer"></g>
+      <g id="stress-layer"></g>
+      <g id="bloom-layer"></g>
+      <g id="impact-layer"></g>
+
+    </svg>
+
+    <!-- Sound effect (Pixabay free licence) -->
+    <audio id="smash"
+      src="https://cdn.pixabay.com/audio/2025/06/21/audio_d2e98a6f49.mp3"
+      preload="auto"
+      aria-hidden="true">
+    </audio>
+
+    <!-- UI -->
+    <div class="ui-controls">
+      <button id="reset" type="button">Clear Glass 🧹</button>
+    </div>
+
+    <!-- Text card bounces in on first smash -->
+    <div id="reveal-image" aria-live="polite">
+      <span class="reveal-eyebrow">⚠️ Is your website at risk?</span>
+      <h2 class="reveal-headline">
+        Free Website<br>
+        <span>Compliance Audit</span>
+      </h2>
+      <div class="reveal-divider"></div>
+      <p class="reveal-tagline">Don't wait for a penalty — get your free audit today.</p>
+      <button class="reveal-cta" id="open-form-btn" type="button">
+        📋 Click Here to Request
+      </button>
+    </div>
+
+    <!-- Modal overlay -->
+    <div id="form-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div id="modal-card">
+        <button id="modal-close" type="button" aria-label="Close">✕</button>
+        <div class="modal-eyebrow">Free Compliance Audit</div>
+        <h3 id="modal-title">Let's get you protected 🛡️</h3>
+        <p class="modal-sub">Fill in your details and we'll text you right back.</p>
+
+        <div class="field-group">
+          <label for="f-name">Your Name</label>
+          <input id="f-name" type="text" placeholder="Jane Smith" autocomplete="name" />
+        </div>
+        <div class="field-group">
+          <label for="f-biz">Business Name</label>
+          <input id="f-biz" type="text" placeholder="Acme Inc." autocomplete="organization" />
+        </div>
+        <div class="field-group">
+          <label for="f-phone">Phone Number</label>
+          <input id="f-phone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel" />
+        </div>
+
+        <div class="section-divider"></div>
+
+        <div class="field-group">
+          <label>Do you have a website?</label>
+          <div class="radio-group">
+            <label>
+              <input type="radio" name="has-website" id="hw-yes" value="yes" />
+              ✅ Yes
+            </label>
+            <label>
+              <input type="radio" name="has-website" id="hw-no" value="no" />
+              ❌ No
+            </label>
+          </div>
+        </div>
+
+        <div id="website-section">
+          <div class="field-group">
+            <label for="f-url">Website URL</label>
+            <div class="url-input-wrap">
+              <span class="url-prefix">https://www.</span>
+              <input id="f-url" type="text" placeholder="yourdomain.com" autocomplete="url" autocapitalize="none" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="f-service">What are you interested in?</label>
+          <select id="f-service">
+            <option value="" disabled selected>— Select a service —</option>
+            <option value="ADA Compliance Audit">♿ Website ADA Compliance Audit</option>
+            <option value="Free Website Demo">🖥️ Free Website Demo</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="f-msg">Message <span class="optional">(optional)</span></label>
+          <textarea id="f-msg" rows="2" placeholder="Anything else you'd like us to know…"></textarea>
+        </div>
+
+        <button id="send-sms-btn" type="button">
+          💬 Send SMS Request
+        </button>
+        <p class="modal-disclaimer">Opens your SMS app pre-filled — no data stored.</p>
+      </div>
+    </div>
+
+  </div><!-- /.stage -->
+
+  <!-- Tweakpane settings panel -->
+  <script>
+    const SVG_NS = "http://www.w3.org/2000/svg";
+
+    const CONFIG = {
+      color: {
+        crack:          { l: 0.98, c: 0.01, h: 220, a: 0.95 },
+        crackShadow:    { l: 0.0,  c: 0.0,  h: 0,   a: 0.2  },
+        crackBranch:    { l: 0.95, c: 0.01, h: 220, a: 0.4  },
+        ring:           { l: 0.97, c: 0.01, h: 210, a: 0.5  },
+        dust:           { l: 1.0,  c: 0.0,  h: 0,   a: 0.9  },
+        shardDark:      { l: 0.12, c: 0.02, h: 220, aMin: 0.08, aMax: 0.3  },
+        shardLight:     { l: 0.94, c: 0.01, h: 210, aMin: 0.08, aMax: 0.2  },
+        shardEdge:      { l: 1.0,  c: 0.0,  h: 0,   aMin: 0.1,  aMax: 0.4  },
+        pit:            { l: 0,    c: 0,    h: 240, a: 0.96 },
+        flash:          { l: 1.0,  c: 0.0,  h: 0,   a: 1.0  },
+        particle:       { l: 1.0,  c: 0.0,  h: 0,   aMin: 0.7,  aMax: 1.0  },
+        particleShadow: "oklch(0% 0 0 / 0.35)"
+      },
+      crack: {
+        rayCountMin: 4, rayCountMax: 16,
+        maxRadiusMin: 180, maxRadiusMax: 340,
+        rayLengthMin: 0.55, segmentMin: 12, segmentMax: 64,
+        driftBase: 0.12, driftGrowth: 0.22,
+        strokeMin: 0.5, strokeMax: 1.5,
+        shadowOffset: [1.5, 2.5], shadowStroke: 2.0,
+        branchProbability: 0.35,
+        branchAngleMin: 0.3, branchAngleMax: 1.2,
+        branchLenMin: 12, branchLenMax: 32, branchStroke: 0.25
+      },
+      ring: {
+        countMin: 3, countMax: 6,
+        radiusBase: 15, radiusStepMin: 25, radiusStepMax: 45,
+        wobbleRange: 12, skipProbability: 0.3, stroke: 0.75
+      },
+      shard: {
+        midRadiusMin: 32, midRadiusMax: 128, midJitter: 12,
+        darkThreshold: 0.35, stagger: 0.025
+      },
+      dust: {
+        count: 12, radius: 18,
+        lenMin: 1, lenMax: 12, strokeMin: 0.25, strokeMax: 1.5
+      },
+      particle: {
+        countMin: 15, countMax: 30,
+        widthMin: 1, widthMax: 4, heightMin: 4, heightMax: 8,
+        forceMin: 50, forceMax: 250, liftOffset: 50,
+        gravityMin: 250, gravityMax: 400,
+        rotateMax: 540, durationMin: 900, durationMax: 1800
+      },
+      impact: { pitRadius: 8, flashRadius: 8, flashDuration: 0.125 },
+      shake:  { intensity: 6, duration: 180 }
+    };
+
+    const MathUtils = {
+      rand:    (min, max) => min + Math.random() * (max - min),
+      randInt: (min, max) => Math.floor(MathUtils.rand(min, max + 1)),
+      polylineLength: (pts) =>
+        pts.slice(1).reduce((t, p, i) =>
+          t + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0),
+      pointsToPath: (pts) =>
+        pts.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" "),
+      buildAngles: (n) =>
+        Array.from({ length: n }, (_, i) =>
+          (Math.PI * 2 / n) * i + MathUtils.rand(-0.5, 0.5)
+        ).sort((a, b) => a - b)
+    };
+
+    const ColorUtils = {
+      oklch: ({ l, c, h, a = 1 }) =>
+        `oklch(${(l * 100).toFixed(1)}% ${c.toFixed(3)} ${h} / ${a})`,
+      oklchRandA: ({ l, c, h, aMin, aMax }) =>
+        ColorUtils.oklch({ l, c, h, a: MathUtils.rand(aMin, aMax) })
+    };
+
+    const SvgUtils = {
+      create: (tag, attrs = {}) => {
+        const el = document.createElementNS(SVG_NS, tag);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        return el;
+      },
+      group: (attrs = {}) => SvgUtils.create("g", attrs)
+    };
+
+    class GlassShatterEngine {
+      #svg; #audio; #layers;
+      #currentStressId = null;
+      #demoTimer = null;
+
+      constructor(svgId, audioId) {
+        this.#svg   = document.getElementById(svgId);
+        this.#audio = document.getElementById(audioId) ??
+          { currentTime: 0, play: () => Promise.resolve() };
+
+        this.#layers = {
+          shadow: this.#svg.querySelector("#shadow-layer"),
+          shard:  this.#svg.querySelector("#shard-layer"),
+          ring:   this.#svg.querySelector("#ring-layer"),
+          crack:  this.#svg.querySelector("#crack-layer"),
+          dust:   this.#svg.querySelector("#dust-layer"),
+          stress: this.#svg.querySelector("#stress-layer"),
+          bloom:  this.#svg.querySelector("#bloom-layer"),
+          impact: this.#svg.querySelector("#impact-layer")
+        };
+
+        this.#bindEvents();
+        this.#triggerDemo();
+      }
+
+      #bindEvents() {
+        window.addEventListener("pointerdown", (e) => {
+          this.#handleImpact(e);
+        }, { passive: true });
+
+        document.getElementById("reset")?.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+          this.reset();
+        });
+      }
+
+      #triggerDemo() {
+        this.#demoTimer = setTimeout(() => {
+          this.#handleImpact({
+            clientX: window.innerWidth  / 2,
+            clientY: window.innerHeight / 2
+          });
+        }, 900);
+      }
+
+      #handleImpact({ clientX, clientY }) {
+        clearTimeout(this.#demoTimer);
+
+        // Recentre the soft spotlight on the impact point
+        const grad = this.#svg.querySelector("#spotlightGrad");
+        if (grad) {
+          const w = window.innerWidth, h = window.innerHeight;
+          const r = Math.min(w, h) * 0.42;
+          grad.setAttribute("cx", clientX);
+          grad.setAttribute("cy", clientY);
+          grad.setAttribute("r",  r);
+          grad.setAttribute("gradientUnits", "userSpaceOnUse");
+        }
+
+        // Bounce the image in on first smash
+        this.#revealAtPoint();
+
+        this.#addCrack(clientX, clientY);
+        this.#spawnParticles(clientX, clientY);
+        this.#shakeScreen();
+        this.#audio.currentTime = 0;
+        this.#audio.play().catch(() => {});
+      }
+
+      simulateSmash() {
+        this.#handleImpact({
+          clientX: MathUtils.rand(window.innerWidth  * 0.2, window.innerWidth  * 0.8),
+          clientY: MathUtils.rand(window.innerHeight * 0.2, window.innerHeight * 0.8)
+        });
+      }
+
+      reset() {
+        Object.values(this.#layers).forEach(l => l?.replaceChildren());
+        this.#svg.querySelectorAll('filter[id^="stress-"]').forEach(el => el.remove());
+        const img = document.getElementById("reveal-image");
+        if (img) {
+          img.classList.remove("visible");
+          img.classList.add("hiding");
+          setTimeout(() => img.classList.remove("hiding"), 450);
+        }
+      }
+
+      #revealAtPoint() {
+        const img = document.getElementById("reveal-image");
+        if (!img || img.classList.contains("visible")) return;
+        img.classList.remove("hiding");
+        // Force reflow so animation restarts cleanly
+        void img.offsetWidth;
+        img.classList.add("visible");
+      }
+
+      #buildRay(cx, cy, baseAngle, totalLength) {
+        const { segmentMin, segmentMax, driftBase, driftGrowth } = CONFIG.crack;
+        const pts = [[cx, cy]];
+        let x = cx, y = cy, angle = baseAngle, remaining = totalLength;
+        while (remaining > 8) {
+          const seg = Math.min(remaining, MathUtils.rand(segmentMin, segmentMax));
+          const drift = driftBase + (1 - remaining / totalLength) * driftGrowth;
+          angle += MathUtils.rand(-drift, drift);
+          x += Math.cos(angle) * seg;
+          y += Math.sin(angle) * seg;
+          pts.push([x, y]);
+          remaining -= seg;
+        }
+        return pts;
+      }
+
+      #addCrack(cx, cy) {
+        const { crack, impact, color } = CONFIG;
+        this.#currentStressId = `stress-${Date.now()}`;
+        const defs = this.#svg.querySelector("defs");
+
+        const filter = SvgUtils.create("filter", {
+          id: this.#currentStressId,
+          x: "-200%", y: "-200%", width: "500%", height: "500%"
+        });
+        filter.append(
+          SvgUtils.create("feTurbulence", {
+            type: "fractalNoise", baseFrequency: "0.02",
+            numOctaves: "2", result: "noise"
+          }),
+          SvgUtils.create("feDisplacementMap", {
+            in: "SourceGraphic", in2: "noise", scale: "10",
+            xChannelSelector: "R", yChannelSelector: "G"
+          })
+        );
+        defs.appendChild(filter);
+
+        const count  = MathUtils.randInt(crack.rayCountMin, crack.rayCountMax);
+        const maxR   = MathUtils.rand(crack.maxRadiusMin, crack.maxRadiusMax);
+        const angles = MathUtils.buildAngles(count);
+        const rays   = angles.map(a =>
+          this.#buildRay(cx, cy, a, maxR * MathUtils.rand(crack.rayLengthMin, 1))
+        );
+
+        const crackEls = this.#buildCrackLayer(rays, angles);
+        this.#layers.shard?.appendChild(this.#buildShardLayer(cx, cy, rays, angles));
+        this.#layers.shadow?.appendChild(crackEls.shadowGroup);
+        this.#layers.crack?.append(crackEls.glowGroup, crackEls.crackGroup, crackEls.branchGroup);
+        this.#layers.ring?.appendChild(this.#buildRingLayer(cx, cy, angles, count));
+        this.#layers.dust?.appendChild(this.#buildDustLayer(cx, cy));
+
+        const pit = SvgUtils.create("circle", {
+          cx, cy, r: impact.pitRadius,
+          fill: ColorUtils.oklch(color.pit)
+        });
+        this.#layers.impact?.appendChild(pit);
+
+        const flash = SvgUtils.create("circle", {
+          cx, cy, r: impact.flashRadius,
+          fill: ColorUtils.oklch(color.flash),
+          filter: "url(#glassBloom)"
+        });
+        flash.style.animation = `flashOut ${impact.flashDuration}s ease-out forwards`;
+        this.#layers.bloom?.appendChild(flash);
+      }
+
+      #buildShardLayer(cx, cy, rays, angles) {
+        const { shard, color } = CONFIG;
+        const g = SvgUtils.group();
+        rays.forEach((ray, i) => {
+          const next      = rays[(i + 1) % rays.length];
+          const nextAngle = angles[(i + 1) % angles.length];
+          const midAngle  = angles[i] + (nextAngle - angles[i]) / 2;
+          const midR      = MathUtils.rand(shard.midRadiusMin, shard.midRadiusMax);
+          const pts = [
+            [cx, cy],
+            ...ray.slice(1, 1 + MathUtils.randInt(2, 5)),
+            [
+              cx + Math.cos(midAngle) * midR + MathUtils.rand(-shard.midJitter, shard.midJitter),
+              cy + Math.sin(midAngle) * midR + MathUtils.rand(-shard.midJitter, shard.midJitter)
+            ],
+            ...next.slice(1, 1 + MathUtils.randInt(2, 5)).toReversed()
+          ];
+          const fill = Math.random() > shard.darkThreshold
+            ? ColorUtils.oklchRandA(color.shardDark)
+            : ColorUtils.oklchRandA(color.shardLight);
+
+          const el = SvgUtils.create("path", {
+            d: `${MathUtils.pointsToPath(pts)} Z`,
+            fill,
+            stroke: ColorUtils.oklchRandA(color.shardEdge),
+            "stroke-width": "0.5",
+            filter: this.#currentStressId
+              ? `url(#${this.#currentStressId})`
+              : "url(#glassRefraction)"
+          });
+          el.style.cssText = `opacity:0; animation: fadeInShard 0.15s ${0.02 + i * shard.stagger}s ease forwards;`;
+          g.appendChild(el);
+        });
+        return g;
+      }
+
+      #buildCrackLayer(rays, angles) {
+        const { crack, color } = CONFIG;
+        const groups = {
+          shadowGroup: SvgUtils.group(),
+          crackGroup:  SvgUtils.group(),
+          glowGroup:   SvgUtils.group({ filter: "url(#glassBloom)", opacity: 0.7 }),
+          branchGroup: SvgUtils.group()
+        };
+
+        rays.forEach((ray, i) => {
+          const len   = MathUtils.polylineLength(ray);
+          const delay = (i * 0.015).toFixed(3);
+          const anim  = `drawLine ${0.15 + i * 0.015}s ${delay}s ease-out forwards`;
+          const dash  = { "stroke-dasharray": len, "stroke-dashoffset": len };
+
+          const mkPath = (opts, animStr) => {
+            const p = SvgUtils.create("path", {
+              d: MathUtils.pointsToPath(ray), fill: "none", ...opts, ...dash
+            });
+            p.style.animation = animStr;
+            return p;
+          };
+
+          groups.shadowGroup.appendChild(mkPath({
+            stroke: ColorUtils.oklch(color.crackShadow),
+            "stroke-width": crack.shadowStroke,
+            transform: `translate(${crack.shadowOffset.join(",")})`
+          }, anim));
+
+          groups.crackGroup.appendChild(mkPath({
+            stroke: ColorUtils.oklch(color.crack),
+            "stroke-width": MathUtils.rand(crack.strokeMin, crack.strokeMax)
+          }, anim));
+
+          groups.glowGroup.appendChild(mkPath({
+            stroke: ColorUtils.oklch(color.crack),
+            "stroke-width": MathUtils.rand(crack.strokeMin, crack.strokeMax) * 2.2,
+            opacity: 0.25
+          }, anim));
+
+          ray.slice(1, -1).forEach(pt => {
+            if (Math.random() > crack.branchProbability) return;
+            const bAngle = angles[i] + (Math.random() > 0.5 ? 1 : -1) *
+              MathUtils.rand(crack.branchAngleMin, crack.branchAngleMax);
+            const bRay = this.#buildRay(pt[0], pt[1], bAngle,
+              MathUtils.rand(crack.branchLenMin, crack.branchLenMax));
+            const bl = MathUtils.polylineLength(bRay);
+            const b  = SvgUtils.create("path", {
+              d: MathUtils.pointsToPath(bRay), fill: "none",
+              stroke: ColorUtils.oklch(color.crackBranch),
+              "stroke-width": crack.branchStroke,
+              "stroke-dasharray": bl, "stroke-dashoffset": bl
+            });
+            b.style.animation = `drawLine 0.2s ${MathUtils.rand(0.1, 0.2)}s ease-out forwards`;
+            groups.branchGroup.appendChild(b);
+          });
+        });
+
+        return groups;
+      }
+
+      #buildRingLayer(cx, cy, angles, rayCount) {
+        const { ring, color } = CONFIG;
+        const g = SvgUtils.group();
+        const rings = MathUtils.randInt(ring.countMin, ring.countMax);
+
+        for (let r = 0; r < rings; r++) {
+          const radius = ring.radiusBase + r * MathUtils.rand(ring.radiusStepMin, ring.radiusStepMax);
+          const delay  = (0.15 + r * 0.05).toFixed(3);
+
+          angles.forEach((a, i) => {
+            if (Math.random() > ring.skipProbability) return;
+            const na   = angles[(i + 1) % rayCount];
+            const span = (na - a + Math.PI * 2) % (Math.PI * 2);
+            const wr   = radius + MathUtils.rand(-ring.wobbleRange, ring.wobbleRange);
+            const x1 = cx + Math.cos(a)  * radius;
+            const y1 = cy + Math.sin(a)  * radius;
+            const x2 = cx + Math.cos(na) * radius;
+            const y2 = cy + Math.sin(na) * radius;
+
+            const arc = SvgUtils.create("path", {
+              d: `M${x1},${y1} A${wr},${wr} 0 ${span > Math.PI ? 1 : 0},1 ${x2},${y2}`,
+              stroke: ColorUtils.oklch(color.ring),
+              "stroke-width": ring.stroke, fill: "none"
+            });
+            arc.style.animation = `drawLine 0.18s ${delay}s ease-out forwards`;
+            g.appendChild(arc);
+          });
+        }
+        return g;
+      }
+
+      #buildDustLayer(cx, cy) {
+        const { dust, color } = CONFIG;
+        const g = SvgUtils.group();
+        for (let i = 0; i < dust.count; i++) {
+          const a   = MathUtils.rand(0, Math.PI * 2);
+          const d   = Math.random() * dust.radius;
+          const x   = cx + Math.cos(a) * d;
+          const y   = cy + Math.sin(a) * d;
+          const len = MathUtils.rand(dust.lenMin, dust.lenMax);
+          const el  = SvgUtils.create("path", {
+            d: `M${x},${y} L${x + Math.cos(a) * len},${y + Math.sin(a) * len}`,
+            stroke: ColorUtils.oklch(color.dust),
+            "stroke-width": MathUtils.rand(dust.strokeMin, dust.strokeMax),
+            fill: "none"
+          });
+          el.style.animation = "drawLine 0.1s ease-out forwards";
+          g.appendChild(el);
+        }
+        return g;
+      }
+
+      #spawnParticles(cx, cy) {
+        const { particle, color } = CONFIG;
+        const count = MathUtils.randInt(particle.countMin, particle.countMax);
+        for (let i = 0; i < count; i++) {
+          const el = document.createElement("div");
+          Object.assign(el.style, {
+            position: "fixed",
+            width:  `${MathUtils.rand(particle.widthMin,  particle.widthMax)}px`,
+            height: `${MathUtils.rand(particle.heightMin, particle.heightMax)}px`,
+            background: ColorUtils.oklchRandA(color.particle),
+            boxShadow: `0 2px 4px ${color.particleShadow}`,
+            left: `${cx}px`, top: `${cy}px`,
+            pointerEvents: "none", zIndex: 20,
+            borderRadius: Math.random() > 0.5 ? "2px" : "50%"
+          });
+          document.body.appendChild(el);
+
+          const a   = MathUtils.rand(0, Math.PI * 2);
+          const f   = MathUtils.rand(particle.forceMin, particle.forceMax);
+          const vx  = Math.cos(a) * f;
+          const vy  = Math.sin(a) * f - particle.liftOffset;
+          const rot = MathUtils.rand(-particle.rotateMax, particle.rotateMax);
+
+          el.animate([
+            { transform: "translate(-50%,-50%)", opacity: 1 },
+            { transform: `translate(${vx * 0.6}px,${vy}px) rotate(${rot * 0.4}deg)`,
+              opacity: 1, offset: 0.4 },
+            { transform: `translate(${vx}px,${vy + MathUtils.rand(particle.gravityMin, particle.gravityMax)}px) rotate(${rot}deg)`,
+              opacity: 0 }
+          ], {
+            duration: MathUtils.rand(particle.durationMin, particle.durationMax),
+            easing: "cubic-bezier(0.25,0.8,0.5,1)",
+            fill: "forwards"
+          }).onfinish = () => el.remove();
+        }
+      }
+
+      #shakeScreen() {
+        const { intensity, duration } = CONFIG.shake;
+        if (intensity <= 0) return;
+        const s = (Math.random() < 0.5 ? -1 : 1) * intensity;
+        document.body.animate([
+          { transform: "translate(0,0)" },
+          { transform: `translate(${s}px,${s * 0.5}px)` },
+          { transform: `translate(${s}px,${s}px)` },
+          { transform: "translate(0,0)" }
+        ], { duration, easing: "ease-in-out" });
+      }
+    }
+
+    /* ── Modal form ── */
+    function initModal() {
+      const modal    = document.getElementById("form-modal");
+      const openBtn  = document.getElementById("open-form-btn");
+      const closeBtn = document.getElementById("modal-close");
+      const sendBtn  = document.getElementById("send-sms-btn");
+      const websiteSection = document.getElementById("website-section");
+
+      const openModal = (e) => {
+        e && e.stopPropagation();
+        modal.classList.add("open");
+      };
+
+      const closeModal = (e) => {
+        e && e.stopPropagation();
+        modal.classList.remove("open");
+      };
+
+      openBtn.addEventListener("click",       openModal);
+      openBtn.addEventListener("pointerdown", e => e.stopPropagation());
+      closeBtn.addEventListener("click",      closeModal);
+      closeBtn.addEventListener("pointerdown", e => e.stopPropagation());
+
+      // Close on backdrop click
+      modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+      modal.addEventListener("pointerdown", e => e.stopPropagation());
+
+      // Show/hide URL field based on yes/no
+      document.querySelectorAll('input[name="has-website"]').forEach(radio => {
+        radio.addEventListener("change", () => {
+          if (radio.value === "yes" && radio.checked) {
+            websiteSection.classList.add("visible");
+          } else {
+            websiteSection.classList.remove("visible");
+            document.getElementById("f-url").value = "";
+          }
+        });
+      });
+
+      sendBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const name    = document.getElementById("f-name").value.trim();
+        const biz     = document.getElementById("f-biz").value.trim();
+        const phone   = document.getElementById("f-phone").value.trim();
+        const msg     = document.getElementById("f-msg").value.trim();
+        const service = document.getElementById("f-service").value;
+        const hwYes   = document.getElementById("hw-yes").checked;
+        const hwNo    = document.getElementById("hw-no").checked;
+        const urlVal  = document.getElementById("f-url").value.trim();
+        const hasWeb  = hwYes || hwNo;
+
+        const missing = [
+          !name    && "Name",
+          !biz     && "Business Name",
+          !phone   && "Phone Number",
+          !hasWeb  && "Do you have a website? (Yes/No)",
+          !service && "Service selection",
+          (hwYes && !urlVal) && "Website URL"
+        ].filter(Boolean);
+
+        if (missing.length) {
+          alert(`Please fill in:\n• ${missing.join("\n• ")}`);
+          return;
+        }
+
+        const websiteLine = hwYes
+          ? `Website: https://www.${urlVal}`
+          : `Website: No website yet`;
+
+        const body = [
+          `Hi! I'd like to request: ${service}.`,
+          `Name: ${name}`,
+          `Business: ${biz}`,
+          `Phone: ${phone}`,
+          websiteLine,
+          msg ? `Note: ${msg}` : ""
+        ].filter(Boolean).join("\n");
+
+        window.location.href = `sms:4158770687?body=${encodeURIComponent(body)}`;
+      });
+    }
+
+    /* ── Boot ── */
+    document.addEventListener("DOMContentLoaded", () => {
+      new GlassShatterEngine("glass-svg", "smash");
+      initModal();
+    });
+  </script>
+
+</body>
+</html>
